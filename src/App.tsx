@@ -11,6 +11,7 @@ import { ProfileCard } from './components/ProfileCard';
 import { GalleryCard } from './components/GalleryCard';
 import { DetailModal } from './components/DetailModal';
 import { CommunityReportModal } from './components/CommunityReportModal';
+import { AddCorruptorModal } from './components/AddCorruptorModal';
 import { INITIAL_CORRUPTORS, INITIAL_COMMUNITY_UPDATES } from './data/corruptorsData';
 import { KoruptorProfile, CommunityUpdate } from './types/corruption';
 
@@ -20,6 +21,7 @@ const LOCAL_STORAGE_CORRUPTORS_KEY = 'koruptor_id_corruptors_data';
 export default function App() {
   // Selected profile for inline detail view (when clicked from gallery)
   const [selectedProfileForDetail, setSelectedProfileForDetail] = useState<KoruptorProfile | null>(null);
+  const [isAddCorruptorModalOpen, setIsAddCorruptorModalOpen] = useState<boolean>(false);
 
   // Corruptors and Community state
   const [corruptors, setCorruptors] = useState<KoruptorProfile[]>(() => {
@@ -66,6 +68,27 @@ export default function App() {
   const [reportTargetId, setReportTargetId] = useState<string | undefined>(undefined);
   const [modalDetailProfile, setModalDetailProfile] = useState<KoruptorProfile | null>(null);
 
+  // Load from Express backend on mount
+  useEffect(() => {
+    fetch('/api/corruptors')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
+          setCorruptors(json.data);
+        }
+      })
+      .catch((err) => console.log('Menggunakan data lokal', err));
+
+    fetch('/api/community-updates')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
+          setCommunityUpdates(json.data);
+        }
+      })
+      .catch((err) => console.log('Menggunakan data komunitas lokal', err));
+  }, []);
+
   // Sync to local storage
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_CORRUPTORS_KEY, JSON.stringify(corruptors));
@@ -102,6 +125,13 @@ export default function App() {
 
     setCommunityUpdates((prev) => [newReport, ...prev]);
 
+    // Send to Express.js backend
+    fetch('/api/community-updates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newReportData),
+    }).catch((err) => console.log('Express API sync error', err));
+
     // Update corruptor record with new report count
     setCorruptors((prev) =>
       prev.map((c) => {
@@ -115,6 +145,21 @@ export default function App() {
         return c;
       })
     );
+  };
+
+  const handleAddCorruptor = (newProfile: KoruptorProfile) => {
+    // Prepend to corruptors state so it shows immediately at the top of the gallery
+    setCorruptors((prev) => [newProfile, ...prev]);
+
+    // Send to Express.js backend
+    fetch('/api/corruptors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newProfile),
+    }).catch((err) => console.log('Express corruptor add sync error', err));
+
+    // Reset inline detail to show in gallery
+    setSelectedProfileForDetail(null);
   };
 
   const handleVoteReport = (reportId: string, type: 'up' | 'flag') => {
@@ -150,6 +195,13 @@ export default function App() {
         return report;
       })
     );
+
+    // Sync vote to Express.js backend
+    fetch(`/api/community-updates/${reportId}/vote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type }),
+    }).catch((err) => console.log('Express vote sync error', err));
   };
 
   // Filter & sort logic for Directory
@@ -201,6 +253,7 @@ export default function App() {
       <Navbar
         onResetGallery={() => setSelectedProfileForDetail(null)}
         onOpenReportModal={() => handleOpenReportModal()}
+        onOpenAddCorruptorModal={() => setIsAddCorruptorModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -429,6 +482,13 @@ export default function App() {
         corruptors={corruptors}
         initialSelectedId={reportTargetId}
         onSubmitReport={handleSubmitReport}
+      />
+
+      {/* Add New Corruptor Profile Modal */}
+      <AddCorruptorModal
+        isOpen={isAddCorruptorModalOpen}
+        onClose={() => setIsAddCorruptorModalOpen(false)}
+        onAddCorruptor={handleAddCorruptor}
       />
 
       {/* Anti-Slop Quiet Institutional Footer */}

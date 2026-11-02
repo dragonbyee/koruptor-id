@@ -1,0 +1,6 @@
+{
+  "name": "KoruptorID - Radar Rekam Jejak & Pantau Posisi Komunitas",
+  "description": "Direktori publik rekam jejak koruptor di Indonesia bergaya profil profesional LinkedIn dengan sorotan kasus, rincian kerugian negara, dan pelaporan posisi pekerjaan saat ini berbasis komunitas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
